@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    test: liveness
+  name: liveness-exec
+spec:
+  containers:
+  - name: liveness
+    image: registry.k8s.io/busybox
+    args:
+    - /bin/sh
+    - -c
+    - touch /tmp/test.txt; sleep 36; rm -f /tmp/test.txt; sleep 600
+
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/test.txt
+      initialDelaySeconds: 10
+      periodSeconds: 7
+
