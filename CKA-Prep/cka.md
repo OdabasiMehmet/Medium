@@ -11,7 +11,11 @@ First of all, if you are new to Kubernetes, Docker or container technology, do n
 # CKA Course
 Once you are good with the basics, I recommend you to take Mumshad Mannambeth's Udemy Course. I took the course and really benefited from it. In addition to the conten, the course provides free lab sessions on KodeKloud platform which is very similar to the CKA exam environment, so you will have lots of hands on experince before the exam. The course also offers mock exams.
 
+# KillerKoda
+
 Also, you must definitely check out killerkoda website. Killerkoda is free to use and the website offers interactive environments with multiple scenarios. You can log in, work on a scenario and restart it as many times as you want until you master the subjects.
+KillerKoda aslo has a Kubernetes playground. You are not limited to work only the scenarios. You can simply log in to the CKA playground and play with creating and managing Kubernetes objects. (https://killercoda.com/killer-shell-cka)
+
 # killer.sh
 
 Finally, when you register for the exam, you are provided with two sessions of killer.sh exam simulator.
@@ -23,6 +27,10 @@ Finally, when you register for the exam, you are provided with two sessions of k
 6. Make sure, that you do the full exam at least three times.
 7. Do not immediately take the second session unless your real exam is due in three days. If there will be a time gap, you may get rusty so schedule the second session within three days of the exams date. If you start at noon again, you can finish your 36 hours the day before the exam.
 8. The second session offers the same tasks so do not expect different tasks. But in essence, once you understand how to do a task, you can easily manage similar tasks.
+
+# Registering for the exam
+Exams are managed through Linux Foundation training website (https://training.linuxfoundation.org/certification/certified-kubernetes-administrator-cka/). The regular price of the exam is $395. If you want to include the CKA course from the Linux Foundation, the total cost goes up to $595.
+Linux Foundations offer discounts throughout the year. Just check for special discount times, like Black Friday and Cyber Monday. I managed to get both the CKA exam and the CKA course for a total of $208 during CyberMonday of 2022.
 
 # What to Focus
 
