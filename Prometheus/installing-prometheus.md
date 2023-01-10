@@ -1,9 +1,8 @@
+# Prometheus
+
+Prometheus is an open source monitoring tool that collects numeric metrics and saves them as time series data in order to monitor your infrastructure. In this tutorial, I will guide you through installing Prometheus on an Ubuntu instance created by Google Cloud. You can use any virtual machine to follow along.
+
 # Installing Prometheus
-
-Prometheus .......
-
-In this tutorial, I will guide you through installing Prometheus on an Ubuntu instance created through Google Cloud. 
-
 
 1. Go to https://prometheus.io/download/ to obtain the download link for Prometheus
 
