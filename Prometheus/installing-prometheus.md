@@ -48,3 +48,28 @@ cd prometheus-2.41.0.linux-amd64/
 ![started](started.jpg)
 
 8. Do not close the terminal window unless you want to stop Prometheus
+
+9. Go to your browser and check Prometheus
+
+```bash
+http://localhost:9090
+```
+
+10. If you are using cloud service like Google Cloud or AWS, you need to provide permissions for port 9090. You can do it by editing inbound rules for AWS and adding TCP 9090 from anywhere 0.0.0.0/0.
+Since I am using Google Cloud for this project, I will add a firewall rule for port 9090
+
+![gcloud](gcloud1.jpg)
+
+![port](firewall.jpg)
+
+11. Then enter your public IP address followed by :9090
+
+```bash
+http://34.127.56.36:9090/
+```
+
+![prometheus](prometheus.jpg)
+
+12. Enter `up` in the search field and click on `execute` to see the running systems. Even without managing scrap features, prometheus is scraping the instance it is running on. 
+
+![own](up.jpg)
