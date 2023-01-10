@@ -25,6 +25,26 @@ wget https://github.com/prometheus/prometheus/releases/download/v2.41.0/promethe
 4. Untar the downloaded tar file (extract it)
 
 ```bash
-tar xvf prometheus-2.41.0.illumos-amd64.tar.gz
+tar xvf prometheus-2.41.0.linux-amd64.tar.gz
 ```
 ![files](files.jpg)
+
+5. Check the list of files and directories
+
+```bash
+ls -l
+```
+![directory](directory.jpg)
+
+6. cd into the directory
+
+```bash
+cd prometheus-2.41.0.linux-amd64/
+```
+7. Start prometheus service
+```bash
+./prometheus
+```
+![started](started.jpg)
+
+8. Do not close the terminal window unless you want to stop Prometheus
