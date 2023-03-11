@@ -316,3 +316,134 @@ Amazon CloudFront is a content delivery network (CDN) that speeds up the distrib
 2.  For Origin Domain, choose BlogALB from Elastic load balancer (Not S3), for Protocol choose Match viewer with HTTP=80 and HTTPS=443 and leave the origin path blank which is actually defining the root as /.
 
 3.  Scroll down until the Viewer part by leaving the values to defaults and then in Viewers part choose Redirect HTTP to HTTPS. Then for allowed HTTP Methods, choose the one with all the options (GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE) and check OPTIONS under Cache HTTP methods. Also do not restrict viewer access.
+
+4. Under Cache key and origin requests, choose Legacy cache settings. From headers, choose İnclude the Following Headers options and add Accept, Accept-Charset, Accept-Datetime, Accept-Encoding, Accept-Language, Authorization,Cloudfront-Forwarded-Proto, Host, Origin, and Referrer. Also select All for both Query strings and Cookies.
+5. Scroll down to Settings and use all edge locations for best performance. For Alternate domain name (CNAME), enter your domain. I will enter myblog.mehmetodabasi.net which I also specified as the S3 bucket name for the static website. If the field is not there click on Add item to bring it. Then from Custom SSL certificate, choose your certificate (if you have one). Finally click on Create distribution.
+
+6. When the distribution creation is over, copy the distribution domain name to use in the next step when configuring Route 53.
+
+## Step 16 Creating Route 53 records with Failover scenario.
+
+Although the blogging application is accessible through the application load balancer and CloudFront domain names, I want to provide a better experience for the visitors in terms of the DNS address of the blogging application by providing them an easy to remember domain name. Also, I need to set up a failover scenario in case the blogging app fails. 
+
+1. Go to Route 53 service.
+
+2. Before the failover scenario, I will set up a health check that will monitor the blogging app. Therefore, click on health checks on the left pane and then hit on create health check.
+
+3. Provide a name for the health check (I entered Blog health check) and choose endpoint to monitor. Then, select Domain name for endpoint type. Protocol will be HTTP and port will be 80 while the path will stay blank.  Now, in terms of Domain name,we will use the CloudFront distribution domain name that we copied in the previous step. Just paste it into Domain name field. Make sure to delete the https:// part so that the distribution domain name starting with the letter d is entered in the field. Then click on next to proceed to the next page and hit on create health check at the bottom right.
+
+4. Now that we have the health check set up, we can create records for the blogging application. Click on Hosted Zones on the left pane. Click on your hosted zone and then hit on create record.
+
+5. Enter myblog before your domain name (or the prefix you selected). Turn on Alias and select CloudFront from the Route traffic to dropdown menu. Choose Failover for Routing policy, choose Primary for the Failover record type and select the health check ID that we just created. Finally, provide a name for the Record ID and click on Add another record without actually creating the record.
+
+6. Enter the same name (myblog) as prefix and turn on Alias again. This time select S3 as website endpoint from the Route traffic to menu, choose your region and your s3 bucket. Routing policy will be Failover, but the record type will be Secondary this time. We do not need a health check for the secondary one so leave it as is and provide a name for Record ID and finally click on create records.
+
+7. Now, it is time to check the blogging application. Just go to your browser and enter the domain name. I entered https://myblog.mehmetodabasi.net (Remember we enabled certificates so we can use secure connection). 
+8. We got the blogging application up and running. However, we are not done yet. We want to create a DynamoDB table to store the list of images uploaded to S3 buckets through the blogging application.
+
+## Step 17 Creating DynamoDB Table
+
+1. Go to DynamoDB service and click on Create table on the right.
+
+2. Enter Blog-Table for name and id as Partition key, leave the rest to defaults and hit on create table. In the next step, we will use a Python code as Lambda function, and we must match the table name in that code with what we write here.
+
+## Step 18 Creating a Role for Lambda
+
+As I mentioned earlier, we will use a Lambda function to trigger the S3-DynamoDb service interaction for the images uploaded to the blogging app. For this, we will need to define a role.
+
+1. Go to IAM service again, choose roles from the left pane and click on create role.
+
+2. For trusted entity type, select AWS servcies and for Use case select Lambda. Then click on next.
+
+3.  Choose DynamoDBFullaccess, Networkadministrator, and s3Fullaccess from the policy list. Then click on next, provide a name for the role and click on create role.
+
+## Step 19 Creating Lambda function
+
+1. Go to Lambda service and click on create function.
+
+2. Choose author from scratch option Go to Lambda service, provide a name and then choose Python 3.8 from the Runtime dropdown menu.
+3. Expand the Change default execution role menu, select existing role, and choose the lambda role that we just created.
+
+4. Select Enable VPC and then the Blog-VPC from the VPC list. In terms of subnets, choose all the subnets in the Blog-VPC and then choose the default security group of Blog-VPC and hit on create function.
+
+## Step 20 Creating events in S3
+
+1. Go to S3 service and click on Buckets
+
+2. Select your blog bucket (not the failover one with your domain name). Mine is blogodabashiblog.
+
+3. Go to Permissions tab and scroll down until you see Event notifications. Click on Create event notification on the right.
+4. Provide a name for the event, choose media/ for prefix (it is coded like this in the blog application source code), and select both all create and all removal events.
+
+5. In terms of destination, choose Lambda functions and select the Blog-lambda-function that we created earlier. Then save changes.
+
+## Step 20 Adding triggers for events in S3
+
+1. Go back to Lambda service again and select the function you created from functions. Then click on Add trigger.
+2. For trigger configuration, choose S3 from the dropdown menu and select All object delete events from the Event type. Check the I Acknowledge section and click on Add.
+
+3. Click on Add trigger once more and choose S3 again from the dropdown menu. This time, select All object create events from the Event type. Check the I Acknowledge section and click on Add.
+
+4. Now that we have triggers both for image creation and removal, we can go ahead and write the python function which our developers had prepared.
+
+5. While in the Blog-lambda-function, select the Code tab. You will see a three-line code there. Delete that code and paste the code below. Then click on Deploy next to Test button.
+
+```bash
+import json
+import boto3
+def lambda_handler(event, context):
+    s3 = boto3.client("s3")
+    if event:
+        print("Event: ", event)
+        filename = str(event['Records'][0]['s3']['object']['key'])
+        timestamp = str(event['Records'][0]['eventTime'])
+        event_name = str(event['Records'][0]['eventName']).split(':')[0][6:]
+        filename1 = filename.split('/')
+        filename2 = filename1[-1]
+        dynamo_db = boto3.resource('dynamodb')
+        dynamoTable = dynamo_db.Table('Blog-Table')
+        dynamoTable.put_item(Item = {
+            'id': filename2,
+            'timestamp': timestamp,
+            'Event': event_name,
+        })
+    return "Lambda success"
+```
+5. Now click on Deploy next to Test button.
+
+## Step 21 Registering and posting on Blog application.
+
+1. Go to your browser and enter your blog domain address. I entered myblog.mehmetodabasi.net.
+2. Click on Register on the right. Then fill the form to register yourself.
+3. Click on Login to enter the site with the credentials you just created for yourself.
+4. Click on New Post and create a post. Enter a title, a text message for content, and attach a picture by choosing a file. For the Status, make sure to select Published. Then hit on Post.
+5. Click on New Post and create a post. Enter a title, a text message for content, and attach a picture by choosing a file. For the Status, make sure to select Published. Then hit on Post.
+5. As you see, my posts were successful. Now, let's go and check the images on the S3 bucket. Go to S3 Service and select the blog bucket.
+
+6. Click on the media folder to open it and then click on blog and 1 respectively to see the images I uploaded to blogging application.
+7. They are there so everything seems to be working perfectly.
+
+8. Now, let's check the DynamoDB table to see if the Lambda function worked and triggered S3 to create objects and write them on a DynamoDB table.
+
+9. Go to DynamoDB service, click on tables from the left pane and then hit on Explore items. There we go. The list of the images are there just like we planned.
+
+## Clean Up Process
+1. Lambda Function
+2. RDS 
+3. RDS Subnet Group
+4. CloudFront>>>>>Disable>>>>>>Delete
+5. DynamoDB table
+6. Route 53 healthcheck
+7. Route 53 failover records
+8. S3 buckets (first objects)
+9. IAM roles
+10. NAT instance >>>>>terminate
+11. Application Load Balancer
+12. Target Group
+13. Launch Template
+14. Auto Scaling Group
+15. Endpoint
+16. Internet gateway>>>>>detach>>>>>delete
+17. Subnets
+18. Private RT
+19. Blog-VPC
