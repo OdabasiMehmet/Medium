@@ -182,3 +182,137 @@ At this step assume that you are provided with the source code.
 2. Modify settings.py under cblog to add RDS endpoint, RDS credential information and S3 bucket name. Make sure that the USER name is the same user name that you entered when creating the RDS database. Also NAME is the name of the database that you entered when creating the RDS database.
 3. Note that the password is not hardcoded. We will include password information in a .env file. So modify the .env file to include the password that you entered when creating the database.
 4.  Do not forget to commit all the changes.
+
+## Step 10 Preparing User data for Launch Template
+
+Blogging application is built with Django Framework and it requires certain software to be installed on EC2 instances to be able to run flawlessly. Also, we will need git software to be able to clone our repository. Also, we will need to include a GitHub token to access our private repo. At this point I assume that you already have a GitHub token. If not, you can get one from GitHub through Settings-developer settings-Personal access tokens-Tokens.
+```bash
+#!/bin/bash
+apt-get update -y
+apt-get install git -y
+apt-get install python3 -y
+cd /home/ubuntu/
+TOKEN="ENTERYOURTOKENHERE"
+git clone https://$TOKEN@
+cd /home/ubuntu/
+apt install python3-pip -y
+apt-get install python3.7-dev default-libmysqlclient-dev -y
+pip3 install -r requirements.txt
+cd /home/ubuntu//src
+python3 manage.py collectstatic --noinput
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 manage.py runserver 0.0.0.0:80
+```
+
+## Step 11 Creating a NAT instance
+
+In the architecture, EC2 instances are placed in a private subnet without Internet access. We will use a NAT instance to grant EC2 instances Internet access.
+
+1. Go to EC2 service and click on launch instance.
+2. Enter Blog NAT Instance as name and then scroll down to Amazon Machine Images.  Click on Browse More AMIs and then enter "nat" in the search bar and hit enter. You have the below screen with four tabs. Choose Community AMIs and from the community AMIs, select the first one (amzn-ami-vpc-nat-2018.03.0.20221018.0-x86_64-ebs).
+3. You will be back at the EC2 launch screen. Choose t2.micro as the instance type, and your own keypair.
+4. Scroll down to Network settings and click on edit on the right. Then from the VPC list choose Blog-VPC and from subnets select Blog-public-subnet-1A (any of your public subnets). In terms of security groups, choose existing and then select Blog_NAT_Sec_Group from the list.  
+5. When finished click on launch instance.
+
+6. Go back to EC2 dashboard to see all instances and select the newly created NAT instance. Then click on Actions-Networking-Change source/destination check. When opened, put a tick mark next to Stop and then save.
+
+7. Now that we have the NAT instance running, we should add it as target for private route tables so that the instances on private subnet can use this instance to connect to Internet. Go to VPC service again and click on Route Tables from left pane. Select Blog-private-RT and click on routes tab. Then click on edit routes.
+
+8. Select Blog-private-RT and click on routes tab. Hit on edit routes and then click on add route. For destination enter 0.0.0.0/0 then for target choose instance. Once NAT instance is shown select it and save changes.
+
+## Step 12 Creating IAM role for Launch Template
+
+Blogging application will run on EC2 instances and when users upload pictures they will be saved in a S3 bucket. Therefore, EC2 instances will need access to S3 buckets. We will achieve this by using an IAM role.
+
+1. Go to  Identity and Access Management service.
+
+2. Click on Roles from left pane and then click on Create role on the right.
+
+3.  Choose AWS as Trusted entity and EC2 as use case and then click on next.
+4.  Enter S3 in search bar and hit enter. Once the list is populated, choose AmazonS3FullAccess and hit on next.
+
+5. Enter Blog_EC2_S3_Full_Access for name and provide a description (optional). Then click on create role on bottom right.
+
+## Step 13 Creating Launch Template
+
+1. Go to EC2 service, click on Launch templates from left pane and then click on Create launch template on the right.
+
+2. Enter Blog_launch_template for name and Blog Web Page version 1 for description.
+
+3. Scroll down to Application and OS Images and hit on quick start. Then click on ubuntu and choose Ubuntu 18.04 from the list.
+
+4. Choose t2.micro for instance type and select your own key pair. In terms of security groups, choose existing security groups and select Blog_EC2_sec_group from the list.
+
+5. Scroll down to Advance Details and hit on it to expand. Click on the little arrow for the IAM instance profile section and select the Blog_EC2_S3_Full_Access role we just created.
+
+6. Scroll down to User data section and paste the user data that we prepared earlier. Then click on create.
+
+## Step 13 Creating Application Load Balancer and Target Group
+
+Application load balancer will distribute the incoming traffic for our blog application to EC2 instances to balance their workload.
+
+1. While still on EC2 service, select Load Balancers from the left pane and hit on Create load balancer. 
+
+2. We will use an application load balancer so click on create under Application Load Balancer.
+
+3. Enter BlogALB as the name. Scheme will be Internet-facing and IP address type will be IPv4.
+
+4. Under Network mappings, choose Blog-VPC from the VPC list and then choose the two AZs we used in our VPC. When subnets lists are populated, select the public ones for each AZ.
+
+5. Choose existing security groups and select Blog-VPC_ALB_Sec_group
+
+6. Under Listeners and Routing, we will enter Protocol Type and port as well as target information. However, we have not created a target yet. So click on Create target group to handle target creation process.
+
+7. A new browser windows opens for target creation menu. Select Instances as target type and enter BlogTargetGroup for name.
+
+8. Since we selected Blog-VPC in load balancer menu, VPC is automatically populated as Blog-VPC, and the protocol is HTTP with port 80. Protocol version is HTTP1. Leave health check protocol as HTTP and the path as / and then click on Advanced health check settings.
+
+9. We can specify healthy threshold values here as we desire. However, I will keep the defaults because they work for me. You can change any of the values here and they are self-explanatory. Basically, what they do is to continuously check the EC2 instances and determine whether they are working healthily. Click next to continue.
+
+10. Normally on this page we can register existing EC2 instances as targets. However, we will not do that. We will use autoscaling to create EC2 instances from the launch template we created earlier and in that process, we will attach this target group with the load balancer to our EC2 instances. So just click on Create Target Group to finish creating the target group.
+
+11. Now go back to the previous browser screen where we we were in the process of creating the load balancer. Click on the refresh icon first and then select the BlogTargetGroup we just created as Forward to target.
+
+12. Click on Add listener. Enter HTTPS for Protocol and 443 for Port and then select BlogTargetGroup as Forward to target. Since this is a secure listener, scroll down and select your certificate from ACM (assuming that you have created a certificate for your domain name). Then click on Create load balancer.
+
+13. Click on View load balancer to go to the load balancers list. Here, we will modify the listeners so that the load balancer will always redirect HTTP requests to secure HTTPS. Therefore, select BlogALB and click on Listeners tab. Then check HTTP 80, click on Actions and hit on Edit Listener.
+
+14. In the Listener details part, click on Remove.
+
+15. Then under default actions add a rule to Redirect. Choose HTTPS for protocol, enter 443 for Port and save changes.
+
+## Step 14 Creating Auto Scaling Group
+
+We want our blogging application to be highly scalable, so we will create an autoscaling group. If we have increasing traffic in the future, this ASG will increase the number of EC2 instances running our blogging application to scale up to mee the needs. 
+
+1. While still on EC2 service, select Auto Scaling Groups on the left pane and click on Create Auto Scaling Group on the right.
+
+2. Enter Blog_ASC for name and choose the launch template that we created earlier and then click next.
+
+Note: If you modify your launch template and save it again it will be in a different version. In that case, be sure to note that version and select it here in the Version field. Otherwise, it will be the default 1st version.
+
+3. Select Blog-VPC from the VPC list and then select the two private subnets we created with VPC. EC2 instances will be in private subnets and reach out to Internet through the NAT instance we created earlier. When finished, click next to continue.
+4. At this step, we will attach the ASG to the load balancer we created in Step 13. Choose Attach to an existing load balancer option and then select the BlogTargetGroup from the target groups list. Also choose ELB for health checks and hit on next.
+5. Here we will define the group size of the EC2 instances. The ASG will try to match the desired capacity (2) with going down to minimum (1) and without exceeding the maximum (4) size depending on the necessity. The necessity level we set here is the CPU Utilization Average. If it exceeds 70%, ASG will spin up new EC2 instances to scale up the compute resources. When finished, click on next.
+6. At this step, we can setup a SNS notification to warn us whenever a change is made in the ASG. It is an optional step so I will skip this step and jump to review page. However, you can set up a notification by clicking on Add notification and following the instructions should you desire. Otherwise, click on skip to review and then click on create Auto Scaling Group.
+
+7. Now go back to EC2 dashboard to see the EC2 instances initiating by the ASG. It will take some time for them to boot up and start because of the user data we added to the launch template. But, as soon as the status check becomes 2/2 checks passed, we can check the blogging application through the load balancer.
+
+8. Click on Load balancers from the left pane and then select BlogALB. Then from the details page, copy the DNS Name and paste it to your browser.
+
+9. You will face a privacy warning. Just ignore it and click on Advanced. You may have a different warning depending on the type of your browser. Shown in the picture below is Chrome browser. After that click on proceed to DNS address.
+
+10. There we go! We have the blogging application up and running
+
+![blog](EC2-30.png)
+
+## Step 15 Creating CloudFront Distribution
+
+Amazon CloudFront is a content delivery network (CDN) that speeds up the distribution of static and dynamic web content, such as HTML, CSS, JavaScript, images, and videos, to end-users worldwide. CloudFront integrates with other AWS services, including Amazon S3, EC2, Elastic Load Balancing, and Lambda@Edge. Here we will integrate it with our application load balancer.
+
+1. Go to CloudFront service and click on create a CloudFront distribution
+
+2.  For Origin Domain, choose BlogALB from Elastic load balancer (Not S3), for Protocol choose Match viewer with HTTP=80 and HTTPS=443 and leave the origin path blank which is actually defining the root as /.
+
+3.  Scroll down until the Viewer part by leaving the values to defaults and then in Viewers part choose Redirect HTTP to HTTPS. Then for allowed HTTP Methods, choose the one with all the options (GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE) and check OPTIONS under Cache HTTP methods. Also do not restrict viewer access.
