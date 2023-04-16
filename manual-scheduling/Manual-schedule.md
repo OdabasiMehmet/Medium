@@ -38,7 +38,7 @@ Without kube-scheduler working, the pod is stuck in a pending status.
 
 # Manual Intervention
 
-When the kube-scheduler is not working, manual intervention can place the pod in a node. How to do that? I actually gave a hint at the beginninng. All we have to do is to add a noName field in the manifest file and add a suitable node manually. 
+When the kube-scheduler is not working, manual intervention can place the pod in a node. How to do that? I actually gave a hint at the beginninng. All we have to do is to add a nodeame field in the manifest file and add a suitable node manually. 
 
 ![nodenameadded](manualpod.png)
 
