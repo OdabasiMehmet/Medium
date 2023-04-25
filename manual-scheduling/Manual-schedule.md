@@ -1,4 +1,4 @@
-When we work with Kubernetes, we generally take most of the processes granted thanks to the Kubernetes architecture. Placing pods in a suitable node is one of those processes. Either we run an imperative `kubectl run` command or we simply provide a deployment or replciaset yaml file and then we sit back and wait the pods to be placed in the nods within the cluster. However, it is crucial to understand how things work under the hood. In fact, it is imperative to know how you can schedule the pods manually within the cluster, so that you can do a manual scheduling should you need it in the future.
+When we work with Kubernetes, we generally take most of the processes granted thanks to the Kubernetes architecture. Placing pods in a suitable node is one of those processes. Either we run an imperative `kubectl run` command or we simply provide a deployment or replicaset yaml file and then we sit back and wait the pods to be placed in the nods within the cluster. However, it is crucial to understand how things work under the hood. In fact, it is imperative to know how you can schedule the pods manually within the cluster, so that you can do a manual scheduling should you need it in the future.
 
 # Kube-scheduler
 
@@ -38,7 +38,7 @@ Without kube-scheduler working, the pod is stuck in a pending status.
 
 # Manual Intervention
 
-When the kube-scheduler is not working, manual intervention can place the pod in a node. How to do that? I actually gave a hint at the beginninng. All we have to do is to add a noName field in the manifest file and add a suitable node manually. 
+When the kube-scheduler is not working, manual intervention can place the pod in a node. How to do that? I actually gave a hint at the beginninng. All we have to do is to add a nodeName field in the manifest file and add a suitable node manually. 
 
 ![nodenameadded](manualpod.png)
 
